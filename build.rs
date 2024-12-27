@@ -36,12 +36,20 @@ fn main() {
     let libs_env = env::var("OPENCC_LIBS").ok();
 
     let libs = match libs_env {
-        Some(ref v) => v.split(':').map(|x| x.to_owned()).collect(),
+        Some(ref v) => {
+            if (v.len() == 0) {
+                vec!["opencc".to_string()] // TODO: not sure
+            } else {
+                v.split(':').map(|x| x.to_owned()).collect()
+            }
+        },
         None => {
             #[allow(clippy::if_same_then_else)]
             if target.contains("windows") {
                 vec!["opencc".to_string()] // TODO: not sure
             } else if target.contains("freebsd") {
+                vec!["opencc".to_string()]
+            } else if target.contains("macos") {
                 vec!["opencc".to_string()]
             } else {
                 run_pkg_config().libs
@@ -120,6 +128,7 @@ fn determine_mode<T: AsRef<str>>(libdirs: &[PathBuf], libs: &[T]) -> &'static st
         .map(|e| e.file_name())
         .filter_map(|e| e.into_string().ok())
         .collect::<HashSet<_>>();
+
     let can_static = libs.iter().all(|l| {
         files.contains(&format!("lib{}.a", l.as_ref()))
             || files.contains(&format!("{}.lib", l.as_ref()))
@@ -163,5 +172,6 @@ fn run_pkg_config() -> pkg_config::Library {
         panic!("OpenCC version must be no higher than {}", MAX_VERSION);
     }
 
-    pkg_config::Config::new().cargo_metadata(false).probe("opencc").unwrap()
+    let ret = pkg_config::Config::new().cargo_metadata(false).probe("opencc").unwrap();
+    ret
 }
